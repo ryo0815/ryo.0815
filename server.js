@@ -157,7 +157,7 @@ async function searchBookInAirtable(title) {
 }
 
 /**
- * 生徒情報を取得
+ * 生徒情報を取得（スペースの有無を柔軟に対応）
  */
 async function getStudentInfo(nameOrId) {
   try {
@@ -165,24 +165,89 @@ async function getStudentInfo(nameOrId) {
     
     const url = `${config.airtable.baseUrl}/${config.airtable.baseId}/${config.airtable.tables.students}`;
     
-    // 名前または生徒IDで検索
-    const response = await axios.get(url, {
+    // 入力された名前のバリエーションを作成
+    const inputName = nameOrId.trim();
+    const nameWithoutSpace = inputName.replace(/\s+/g, ''); // スペースを全て除去
+    const nameWithSpace = inputName.replace(/([あ-ん一-龯])([あ-ん一-龯])/g, '$1 $2'); // 名字と名前の間にスペースを追加（簡易版）
+    
+    console.log('🔍 検索パターン:');
+    console.log('  - 入力された名前:', inputName);
+    console.log('  - スペースなし:', nameWithoutSpace);
+    console.log('  - スペースあり:', nameWithSpace);
+    
+    // まず標準的な検索を試行（完全一致）
+    let response = await axios.get(url, {
       headers: {
         'Authorization': `Bearer ${config.airtable.apiKey}`
       },
       params: {
-        filterByFormula: `OR({生徒ID} = "${nameOrId}", {名前} = "${nameOrId}")`
+        filterByFormula: `OR({生徒ID} = "${inputName}", {名前} = "${inputName}")`
       }
     });
 
     if (response.data.records && response.data.records.length > 0) {
       const student = response.data.records[0];
-      console.log('✅ 生徒情報を取得しました:', student.fields.名前 || student.fields.Name);
+      console.log('✅ 完全一致で生徒情報を取得しました:', student.fields.名前 || student.fields.Name);
       return student;
-    } else {
-      console.log('⚠️  生徒が見つかりませんでした');
-      return null;
     }
+
+    // 完全一致で見つからない場合、スペースのバリエーションで検索
+    console.log('🔍 スペースバリエーションで再検索中...');
+    response = await axios.get(url, {
+      headers: {
+        'Authorization': `Bearer ${config.airtable.apiKey}`
+      },
+      params: {
+        filterByFormula: `OR({名前} = "${nameWithoutSpace}", {名前} = "${nameWithSpace}")`
+      }
+    });
+
+    if (response.data.records && response.data.records.length > 0) {
+      const student = response.data.records[0];
+      console.log('✅ スペースバリエーションで生徒情報を取得しました:', student.fields.名前 || student.fields.Name);
+      return student;
+    }
+
+    // まだ見つからない場合、フォールバック：全件取得してJavaScriptで柔軟マッチング
+    console.log('🔍 フォールバック検索を実行中...');
+    try {
+      response = await axios.get(url, {
+        headers: {
+          'Authorization': `Bearer ${config.airtable.apiKey}`
+        }
+      });
+
+      if (response.data.records && response.data.records.length > 0) {
+        // JavaScriptで柔軟にマッチング
+        const matchingStudent = response.data.records.find(record => {
+          const studentName = record.fields.名前 || record.fields.Name || '';
+          const studentId = record.fields.生徒ID || record.fields.StudentID || '';
+          
+          // 正規化して比較（スペースを除去）
+          const normalizedStoredName = studentName.replace(/\s+/g, '');
+          const normalizedInputName = inputName.replace(/\s+/g, '');
+          
+          // 生徒IDでの完全一致 または 名前での正規化一致
+          const idMatch = studentId === inputName;
+          const nameMatch = normalizedStoredName === normalizedInputName;
+          
+          console.log(`🔍 比較中: ${studentName} (正規化: ${normalizedStoredName}) vs ${inputName} (正規化: ${normalizedInputName})`);
+          console.log(`   ID一致: ${idMatch}, 名前一致: ${nameMatch}`);
+          
+          return idMatch || nameMatch;
+        });
+
+        if (matchingStudent) {
+          console.log('✅ フォールバック検索で生徒情報を取得しました:', matchingStudent.fields.名前 || matchingStudent.fields.Name);
+          return matchingStudent;
+        }
+      }
+    } catch (fallbackError) {
+      console.error('⚠️ フォールバック検索でエラー:', fallbackError.message);
+    }
+
+    console.log('⚠️ すべての検索方法で生徒が見つかりませんでした');
+    return null;
   } catch (error) {
     console.error('❌ 生徒情報取得エラー:', error.response?.data || error.message);
     throw error;
