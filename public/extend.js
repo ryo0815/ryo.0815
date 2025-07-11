@@ -7,9 +7,7 @@ let cameraStream = null;
 
 // DOM要素の取得
 const elements = {
-    initialPrompt: document.getElementById('initialPrompt'),
     chatContainer: document.getElementById('chatContainer'),
-    messages: document.getElementById('messages'),
     uploadSection: document.getElementById('uploadSection'),
     uploadArea: document.getElementById('uploadArea'),
     bookImage: document.getElementById('bookImage'),
@@ -17,9 +15,8 @@ const elements = {
     uploadBtn: document.getElementById('uploadBtn'),
     nameSection: document.getElementById('nameSection'),
     nameInput: document.getElementById('nameInput'),
-    nameSubmitBtn: document.getElementById('nameSubmitBtn'),
     loading: document.getElementById('loading'),
-    resetBtn: document.getElementById('resetBtn'),
+    loadingText: document.getElementById('loadingText'),
     // カメラ関連の要素
     fileUploadBtn: document.getElementById('fileUploadBtn'),
     cameraBtn: document.getElementById('cameraBtn'),
@@ -44,14 +41,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 名前入力セクションを表示
     elements.nameSection.style.display = 'block';
+    elements.uploadSection.style.display = 'none';
     elements.nameInput.focus();
-    
-    // エンターキーでの送信
-    elements.nameInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            handleNameSubmit();
-        }
-    });
 });
 
 // メッセージを追加する関数
@@ -89,7 +80,9 @@ function addMessage(text, type, buttons = null) {
 
 // ローディング表示
 function showLoading(text = '処理中...') {
-    elements.loadingText.textContent = text;
+    if (elements.loadingText) {
+        elements.loadingText.textContent = text;
+    }
     elements.loading.style.display = 'block';
 }
 
@@ -102,42 +95,39 @@ function hideLoading() {
 function handleFileSelect(event) {
     selectedFile = event.target.files[0];
     if (selectedFile) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            elements.imagePreview.innerHTML = `<img src="${e.target.result}" alt="Book Cover" style="max-width: 100%; height: auto;">`;
-            elements.uploadBtn.disabled = false;
-        };
-        reader.readAsDataURL(selectedFile);
+        showImagePreview(selectedFile);
+        elements.uploadBtn.disabled = false;
     } else {
         elements.imagePreview.innerHTML = '';
         elements.uploadBtn.disabled = true;
     }
 }
 
-// ファイルアップロードの処理
-async function handleExtendStep1() {
-    if (!selectedFile) {
-        alert('書籍のカバー画像を選択してください。');
+// 名前入力の処理
+async function handleNameSubmit() {
+    const name = elements.nameInput.value.trim();
+    if (!name) {
+        alert('名前を入力してください');
         return;
     }
-
-    addMessage('書籍のカバー画像をアップロードしています...', 'user');
-    showLoading('書籍情報を取得しています...');
+    
+    addMessage(name, 'user');
+    showLoading('貸出一覧を取得しています...');
     elements.nameSection.style.display = 'none';
-
+    
     try {
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-
         const response = await fetch('/api/extend-step1', {
             method: 'POST',
-            body: formData,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name: name }),
             credentials: 'include'
         });
-
+        
         const data = await response.json();
         hideLoading();
-
+        
         if (data.success) {
             currentStudent = data.data.student;
             currentLoans = data.data.loans;
@@ -251,11 +241,7 @@ async function requestExtension(loanIndex) {
             
             // 3秒後にメインページに戻る
             setTimeout(() => {
-                if (data.data && data.data.redirectToMain) {
-                    window.location.href = '/';
-                } else {
-                    window.location.href = '/';
-                }
+                window.location.href = '/';
             }, 3000);
         } else {
             addMessage(data.message, 'bot');
@@ -264,6 +250,58 @@ async function requestExtension(loanIndex) {
     } catch (error) {
         hideLoading();
         addMessage('エラーが発生しました。もう一度お試しください。', 'bot');
+    }
+}
+
+// ファイルアップロードの処理（書籍画像から延長申請）
+async function handleExtendStep1() {
+    if (!selectedFile) {
+        alert('書籍のカバー画像を選択してください。');
+        return;
+    }
+
+    addMessage('書籍のカバー画像をアップロードしています...', 'user');
+    showLoading('書籍情報を取得しています...');
+
+    try {
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        const response = await fetch('/api/extend-step1', {
+            method: 'POST',
+            body: formData,
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+        hideLoading();
+
+        if (data.success) {
+            currentStudent = data.data.student;
+            currentLoans = data.data.loans;
+            
+            if (currentLoans.length === 0) {
+                addMessage('📚 現在借りている本がありません。', 'bot');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 3000);
+            } else {
+                addMessage(`📚 ${currentStudent.name}さんの貸出一覧を表示します`, 'bot');
+                displayLoanList();
+            }
+        } else {
+            addMessage(data.message, 'bot');
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 3000);
+        }
+        
+    } catch (error) {
+        hideLoading();
+        addMessage('エラーが発生しました。もう一度お試しください。', 'bot');
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 3000);
     }
 }
 
@@ -383,72 +421,9 @@ async function handleDrop(event) {
     const file = event.dataTransfer.files[0];
     if (file) {
         selectedFile = file;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            elements.imagePreview.innerHTML = `<img src="${e.target.result}" alt="Book Cover" style="max-width: 100%; height: auto;">`;
-            elements.uploadBtn.disabled = false;
-        };
-        reader.readAsDataURL(file);
+        showImagePreview(file);
+        elements.uploadBtn.disabled = false;
     }
-}
-
-// 名前入力の処理
-async function handleNameSubmit() {
-    const name = elements.nameInput.value.trim();
-    if (!name) {
-        alert('名前を入力してください');
-        return;
-    }
-    
-    addMessage(name, 'user');
-    showLoading('貸出一覧を取得しています...');
-    elements.nameSection.style.display = 'none';
-    
-    try {
-        const response = await fetch('/api/extend-step1', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ name: name }),
-            credentials: 'include'
-        });
-        
-        const data = await response.json();
-        hideLoading();
-        
-        if (data.success) {
-            currentStudent = data.data.student;
-            currentLoans = data.data.loans;
-            
-            if (currentLoans.length === 0) {
-                addMessage('📚 現在借りている本がありません。', 'bot');
-                setTimeout(() => {
-                    window.location.href = '/';
-                }, 3000);
-            } else {
-                addMessage(`📚 ${currentStudent.name}さんの貸出一覧を表示します`, 'bot');
-                displayLoanList();
-            }
-        } else {
-            addMessage(data.message, 'bot');
-            setTimeout(() => {
-                window.location.href = '/';
-            }, 3000);
-        }
-        
-    } catch (error) {
-        hideLoading();
-        addMessage('エラーが発生しました。もう一度お試しください。', 'bot');
-        setTimeout(() => {
-            window.location.href = '/';
-        }, 3000);
-    }
-}
-
-// システムをリセットする関数
-function resetSystem() {
-    resetToInitialState();
 }
 
 // イベントリスナーの設定
@@ -466,13 +441,9 @@ function setupEventListeners() {
     // 名前入力関連
     elements.nameInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
-            handleExtendStep3();
+            handleNameSubmit();
         }
     });
-    elements.nameSubmitBtn.addEventListener('click', handleExtendStep3);
-    
-    // リセットボタン
-    elements.resetBtn.addEventListener('click', resetSystem);
     
     // ドラッグ&ドロップ
     elements.uploadArea.addEventListener('dragover', handleDragOver);
@@ -484,6 +455,8 @@ function setupEventListeners() {
 function resetToInitialState() {
     currentStep = 'initial';
     selectedFile = null;
+    currentStudent = null;
+    currentLoans = [];
     
     // カメラストリームを停止
     if (cameraStream) {
@@ -492,10 +465,9 @@ function resetToInitialState() {
     }
     
     // UI要素の表示/非表示
-    elements.initialPrompt.style.display = 'block';
-    elements.chatContainer.style.display = 'none';
-    elements.uploadSection.style.display = 'block';
-    elements.nameSection.style.display = 'none';
+    elements.chatContainer.innerHTML = '<div class="message bot"><strong>📝 延長申請を開始します</strong><br>まず、お名前を入力してください。現在借りている本の一覧を表示します。</div>';
+    elements.uploadSection.style.display = 'none';
+    elements.nameSection.style.display = 'block';
     elements.loading.style.display = 'none';
     elements.cameraSection.style.display = 'none';
     
@@ -504,8 +476,15 @@ function resetToInitialState() {
     elements.nameInput.value = '';
     elements.uploadBtn.disabled = true;
     elements.imagePreview.innerHTML = '';
-    elements.messages.innerHTML = '';
     elements.cameraVideo.srcObject = null;
+    
+    // 名前入力にフォーカス
+    elements.nameInput.focus();
+}
+
+// システムをリセットする関数
+function resetSystem() {
+    resetToInitialState();
 }
 
 // エラーハンドリング
