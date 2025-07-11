@@ -1,22 +1,46 @@
 // 延長申請システムのJavaScript
 
+// アプリケーションの状態管理
+let currentStep = 'initial';
+let selectedFile = null;
+let cameraStream = null;
+
 // DOM要素の取得
 const elements = {
+    initialPrompt: document.getElementById('initialPrompt'),
     chatContainer: document.getElementById('chatContainer'),
+    messages: document.getElementById('messages'),
+    uploadSection: document.getElementById('uploadSection'),
+    uploadArea: document.getElementById('uploadArea'),
+    bookImage: document.getElementById('bookImage'),
+    imagePreview: document.getElementById('imagePreview'),
+    uploadBtn: document.getElementById('uploadBtn'),
     nameSection: document.getElementById('nameSection'),
     nameInput: document.getElementById('nameInput'),
+    nameSubmitBtn: document.getElementById('nameSubmitBtn'),
     loading: document.getElementById('loading'),
-    loadingText: document.getElementById('loadingText')
+    resetBtn: document.getElementById('resetBtn'),
+    // カメラ関連の要素
+    fileUploadBtn: document.getElementById('fileUploadBtn'),
+    cameraBtn: document.getElementById('cameraBtn'),
+    cameraSection: document.getElementById('cameraSection'),
+    cameraPreview: document.getElementById('cameraPreview'),
+    cameraVideo: document.getElementById('cameraVideo'),
+    cameraCanvas: document.getElementById('cameraCanvas'),
+    captureBtn: document.getElementById('captureBtn'),
+    closeCameraBtn: document.getElementById('closeCameraBtn')
 };
 
 // 現在のステップ
-let currentStep = 'initial';
 let currentStudent = null;
 let currentLoans = [];
 
 // ページ読み込み時の初期化
 document.addEventListener('DOMContentLoaded', function() {
     console.log('延長申請システムが初期化されました');
+    
+    // イベントリスナーの設定
+    setupEventListeners();
     
     // 名前入力セクションを表示
     elements.nameSection.style.display = 'block';
@@ -74,31 +98,46 @@ function hideLoading() {
     elements.loading.style.display = 'none';
 }
 
-// 名前入力の処理
-async function handleNameSubmit() {
-    const name = elements.nameInput.value.trim();
-    if (!name) {
-        alert('名前を入力してください');
+// ファイル選択の処理
+function handleFileSelect(event) {
+    selectedFile = event.target.files[0];
+    if (selectedFile) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            elements.imagePreview.innerHTML = `<img src="${e.target.result}" alt="Book Cover" style="max-width: 100%; height: auto;">`;
+            elements.uploadBtn.disabled = false;
+        };
+        reader.readAsDataURL(selectedFile);
+    } else {
+        elements.imagePreview.innerHTML = '';
+        elements.uploadBtn.disabled = true;
+    }
+}
+
+// ファイルアップロードの処理
+async function handleExtendStep1() {
+    if (!selectedFile) {
+        alert('書籍のカバー画像を選択してください。');
         return;
     }
-    
-    addMessage(name, 'user');
-    showLoading('貸出一覧を取得しています...');
+
+    addMessage('書籍のカバー画像をアップロードしています...', 'user');
+    showLoading('書籍情報を取得しています...');
     elements.nameSection.style.display = 'none';
-    
+
     try {
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
         const response = await fetch('/api/extend-step1', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ name: name }),
+            body: formData,
             credentials: 'include'
         });
-        
+
         const data = await response.json();
         hideLoading();
-        
+
         if (data.success) {
             currentStudent = data.data.student;
             currentLoans = data.data.loans;
@@ -228,9 +267,245 @@ async function requestExtension(loanIndex) {
     }
 }
 
+// カメラ関連の関数
+async function openCamera() {
+    try {
+        // カメラアクセス権限を要求
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { 
+                facingMode: 'environment', // 背面カメラを優先
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            },
+            audio: false
+        });
+        
+        // ビデオ要素にストリームを設定
+        elements.cameraVideo.srcObject = cameraStream;
+        elements.cameraSection.style.display = 'block';
+        
+        // カメラが開いたらプレビューを開始
+        elements.cameraVideo.addEventListener('loadedmetadata', () => {
+            elements.cameraVideo.play();
+        });
+        
+    } catch (error) {
+        console.error('カメラアクセスエラー:', error);
+        alert('カメラにアクセスできませんでした。ブラウザの設定を確認してください。');
+    }
+}
+
+// 写真を撮影
+function capturePhoto() {
+    if (!cameraStream) return;
+    
+    const canvas = elements.cameraCanvas;
+    const video = elements.cameraVideo;
+    const context = canvas.getContext('2d');
+    
+    // キャンバスサイズをビデオサイズに合わせる
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // ビデオフレームをキャンバスに描画
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // キャンバスから画像データを取得
+    const dataURL = canvas.toDataURL('image/jpeg', 0.8);
+    
+    // dataURLをFileオブジェクトに変換
+    const file = dataURLtoFile(dataURL, 'captured_image.jpg');
+    selectedFile = file;
+    
+    // プレビューを表示
+    showImagePreview(file);
+    
+    // アップロードボタンを有効化
+    elements.uploadBtn.disabled = false;
+    
+    // カメラを閉じる
+    closeCamera();
+}
+
+// カメラを閉じる
+function closeCamera() {
+    if (cameraStream) {
+        // ストリームの全トラックを停止
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+    }
+    
+    // UI要素を隠す
+    elements.cameraSection.style.display = 'none';
+    elements.cameraVideo.srcObject = null;
+}
+
+// DataURLをFileオブジェクトに変換するヘルパー関数
+function dataURLtoFile(dataurl, filename) {
+    const arr = dataurl.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    
+    while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    
+    return new File([u8arr], filename, { type: mime });
+}
+
+// 画像プレビュー表示
+function showImagePreview(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        elements.imagePreview.innerHTML = `
+            <img src="${e.target.result}" class="image-preview" alt="プレビュー">
+        `;
+    };
+    reader.readAsDataURL(file);
+}
+
+// ドラッグ&ドロップの処理
+function handleDragOver(event) {
+    event.preventDefault();
+    elements.uploadArea.classList.add('dragover');
+}
+
+function handleDragLeave(event) {
+    elements.uploadArea.classList.remove('dragover');
+}
+
+async function handleDrop(event) {
+    event.preventDefault();
+    elements.uploadArea.classList.remove('dragover');
+
+    const file = event.dataTransfer.files[0];
+    if (file) {
+        selectedFile = file;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            elements.imagePreview.innerHTML = `<img src="${e.target.result}" alt="Book Cover" style="max-width: 100%; height: auto;">`;
+            elements.uploadBtn.disabled = false;
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+// 名前入力の処理
+async function handleNameSubmit() {
+    const name = elements.nameInput.value.trim();
+    if (!name) {
+        alert('名前を入力してください');
+        return;
+    }
+    
+    addMessage(name, 'user');
+    showLoading('貸出一覧を取得しています...');
+    elements.nameSection.style.display = 'none';
+    
+    try {
+        const response = await fetch('/api/extend-step1', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name: name }),
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        hideLoading();
+        
+        if (data.success) {
+            currentStudent = data.data.student;
+            currentLoans = data.data.loans;
+            
+            if (currentLoans.length === 0) {
+                addMessage('📚 現在借りている本がありません。', 'bot');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 3000);
+            } else {
+                addMessage(`📚 ${currentStudent.name}さんの貸出一覧を表示します`, 'bot');
+                displayLoanList();
+            }
+        } else {
+            addMessage(data.message, 'bot');
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 3000);
+        }
+        
+    } catch (error) {
+        hideLoading();
+        addMessage('エラーが発生しました。もう一度お試しください。', 'bot');
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 3000);
+    }
+}
+
+// システムをリセットする関数
+function resetSystem() {
+    resetToInitialState();
+}
+
+// イベントリスナーの設定
+function setupEventListeners() {
+    // ファイルアップロード関連
+    elements.fileUploadBtn.addEventListener('click', () => elements.bookImage.click());
+    elements.bookImage.addEventListener('change', handleFileSelect);
+    elements.uploadBtn.addEventListener('click', handleExtendStep1);
+    
+    // カメラ関連
+    elements.cameraBtn.addEventListener('click', openCamera);
+    elements.captureBtn.addEventListener('click', capturePhoto);
+    elements.closeCameraBtn.addEventListener('click', closeCamera);
+    
+    // 名前入力関連
+    elements.nameInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            handleExtendStep3();
+        }
+    });
+    elements.nameSubmitBtn.addEventListener('click', handleExtendStep3);
+    
+    // リセットボタン
+    elements.resetBtn.addEventListener('click', resetSystem);
+    
+    // ドラッグ&ドロップ
+    elements.uploadArea.addEventListener('dragover', handleDragOver);
+    elements.uploadArea.addEventListener('dragleave', handleDragLeave);
+    elements.uploadArea.addEventListener('drop', handleDrop);
+}
+
 // 初期状態にリセット
 function resetToInitialState() {
-    window.location.href = '/';
+    currentStep = 'initial';
+    selectedFile = null;
+    
+    // カメラストリームを停止
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+    }
+    
+    // UI要素の表示/非表示
+    elements.initialPrompt.style.display = 'block';
+    elements.chatContainer.style.display = 'none';
+    elements.uploadSection.style.display = 'block';
+    elements.nameSection.style.display = 'none';
+    elements.loading.style.display = 'none';
+    elements.cameraSection.style.display = 'none';
+    
+    // フォームのリセット
+    elements.bookImage.value = '';
+    elements.nameInput.value = '';
+    elements.uploadBtn.disabled = true;
+    elements.imagePreview.innerHTML = '';
+    elements.messages.innerHTML = '';
+    elements.cameraVideo.srcObject = null;
 }
 
 // エラーハンドリング

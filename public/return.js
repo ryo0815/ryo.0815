@@ -1,6 +1,7 @@
 // アプリケーションの状態管理
 let currentStep = 'initial';
 let selectedFile = null;
+let cameraStream = null;
 
 // DOM要素の取得
 const elements = {
@@ -16,7 +17,16 @@ const elements = {
     nameInput: document.getElementById('nameInput'),
     nameSubmitBtn: document.getElementById('nameSubmitBtn'),
     loading: document.getElementById('loading'),
-    resetBtn: document.getElementById('resetBtn')
+    resetBtn: document.getElementById('resetBtn'),
+    // カメラ関連の要素
+    fileUploadBtn: document.getElementById('fileUploadBtn'),
+    cameraBtn: document.getElementById('cameraBtn'),
+    cameraSection: document.getElementById('cameraSection'),
+    cameraPreview: document.getElementById('cameraPreview'),
+    cameraVideo: document.getElementById('cameraVideo'),
+    cameraCanvas: document.getElementById('cameraCanvas'),
+    captureBtn: document.getElementById('captureBtn'),
+    closeCameraBtn: document.getElementById('closeCameraBtn')
 };
 
 // アプリケーション初期化
@@ -31,9 +41,14 @@ function initializeApp() {
 
 function setupEventListeners() {
     // ファイルアップロード関連
-    elements.uploadArea.addEventListener('click', () => elements.bookImage.click());
+    elements.fileUploadBtn.addEventListener('click', () => elements.bookImage.click());
     elements.bookImage.addEventListener('change', handleFileSelect);
     elements.uploadBtn.addEventListener('click', handleReturnStep1);
+    
+    // カメラ関連
+    elements.cameraBtn.addEventListener('click', openCamera);
+    elements.captureBtn.addEventListener('click', capturePhoto);
+    elements.closeCameraBtn.addEventListener('click', closeCamera);
     
     // 名前入力関連
     elements.nameInput.addEventListener('keypress', (e) => {
@@ -56,12 +71,19 @@ function resetToInitialState() {
     currentStep = 'initial';
     selectedFile = null;
     
+    // カメラストリームを停止
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+    }
+    
     // UI要素の表示/非表示
     elements.initialPrompt.style.display = 'block';
     elements.chatContainer.style.display = 'none';
     elements.uploadSection.style.display = 'block';
     elements.nameSection.style.display = 'none';
     elements.loading.style.display = 'none';
+    elements.cameraSection.style.display = 'none';
     
     // フォームのリセット
     elements.bookImage.value = '';
@@ -69,6 +91,7 @@ function resetToInitialState() {
     elements.uploadBtn.disabled = true;
     elements.imagePreview.innerHTML = '';
     elements.messages.innerHTML = '';
+    elements.cameraVideo.srcObject = null;
 }
 
 function resetSystem() {
@@ -123,6 +146,96 @@ function handleDrop(event) {
             elements.uploadBtn.disabled = false;
         }
     }
+}
+
+// ========== カメラ機能 ==========
+
+// カメラを開く
+async function openCamera() {
+    try {
+        // カメラアクセス権限を要求
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { 
+                facingMode: 'environment', // 背面カメラを優先
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            },
+            audio: false
+        });
+        
+        // ビデオ要素にストリームを設定
+        elements.cameraVideo.srcObject = cameraStream;
+        elements.cameraSection.style.display = 'block';
+        
+        // カメラが開いたらプレビューを開始
+        elements.cameraVideo.addEventListener('loadedmetadata', () => {
+            elements.cameraVideo.play();
+        });
+        
+    } catch (error) {
+        console.error('カメラアクセスエラー:', error);
+        alert('カメラにアクセスできませんでした。ブラウザの設定を確認してください。');
+    }
+}
+
+// 写真を撮影
+function capturePhoto() {
+    if (!cameraStream) return;
+    
+    const canvas = elements.cameraCanvas;
+    const video = elements.cameraVideo;
+    const context = canvas.getContext('2d');
+    
+    // キャンバスサイズをビデオサイズに合わせる
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // ビデオフレームをキャンバスに描画
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // キャンバスから画像データを取得
+    const dataURL = canvas.toDataURL('image/jpeg', 0.8);
+    
+    // dataURLをFileオブジェクトに変換
+    const file = dataURLtoFile(dataURL, 'captured_image.jpg');
+    selectedFile = file;
+    
+    // プレビューを表示
+    showImagePreview(file);
+    
+    // アップロードボタンを有効化
+    elements.uploadBtn.disabled = false;
+    
+    // カメラを閉じる
+    closeCamera();
+}
+
+// カメラを閉じる
+function closeCamera() {
+    if (cameraStream) {
+        // ストリームの全トラックを停止
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+    }
+    
+    // UI要素を隠す
+    elements.cameraSection.style.display = 'none';
+    elements.cameraVideo.srcObject = null;
+}
+
+// DataURLをFileオブジェクトに変換するヘルパー関数
+function dataURLtoFile(dataurl, filename) {
+    const arr = dataurl.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    
+    while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    
+    return new File([u8arr], filename, { type: mime });
 }
 
 // メッセージ表示関数
