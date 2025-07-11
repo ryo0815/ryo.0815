@@ -21,7 +21,7 @@
             width: 100%;
             padding: 20px;
         }
-        
+
         .welcome-card {
             background: rgba(255, 255, 255, 0.95);
             border-radius: 20px;
@@ -29,14 +29,14 @@
             overflow: hidden;
             backdrop-filter: blur(10px);
         }
-        
+
         .welcome-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 40px 20px;
             text-align: center;
         }
-        
+
         .welcome-header h1 {
             font-size: 2.5rem;
             margin-bottom: 10px;
@@ -48,7 +48,7 @@
             margin: 0;
             opacity: 0.9;
         }
-        
+
         .selection-area {
             padding: 40px;
             text-align: center;
@@ -60,7 +60,7 @@
             margin-bottom: 30px;
             font-weight: 600;
         }
-        
+
         .selection-buttons {
             display: flex;
             gap: 20px;
@@ -84,14 +84,14 @@
             cursor: pointer;
             flex: 1;
         }
-        
+
         .selection-btn:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
             text-decoration: none;
             color: #333;
         }
-        
+
         .selection-btn.borrow {
             border-color: #667eea;
         }
@@ -101,11 +101,11 @@
             color: white;
             border-color: #667eea;
         }
-        
+
         .selection-btn.return {
             border-color: #28a745;
         }
-        
+
         .selection-btn.return:hover {
             background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
             color: white;
@@ -115,7 +115,7 @@
         .selection-btn.extend {
             border-color: #ffc107;
         }
-        
+
         .selection-btn.extend:hover {
             background: linear-gradient(135deg, #ffc107 0%, #ffb300 100%);
             color: white;
@@ -137,24 +137,24 @@
             margin: 0;
             opacity: 0.7;
         }
-        
+
         .footer-text {
             text-align: center;
             color: rgba(255, 255, 255, 0.8);
             margin-top: 30px;
             font-size: 0.9rem;
         }
-        
+
         @media (max-width: 768px) {
             .selection-buttons {
                 flex-direction: column;
                 gap: 15px;
-            }
-            
+        }
+
             .selection-btn {
                 min-width: auto;
                 width: 100%;
-            }
+        }
         }
         
         @media (max-width: 576px) {
@@ -164,12 +164,12 @@
             
             .welcome-header {
                 padding: 30px 15px;
-            }
-            
+        }
+
             .welcome-header h1 {
                 font-size: 2rem;
-            }
-            
+        }
+
             .selection-area {
                 padding: 30px 20px;
             }
@@ -182,8 +182,8 @@
             <div class="welcome-header">
                 <h1>📚 図書管理システム</h1>
                 <p>貸出・返却・延長申請をお選びください</p>
-            </div>
-            
+                            </div>
+
             <div class="selection-area">
                 <h2 class="selection-title">どちらをご希望ですか？</h2>
                 
@@ -193,13 +193,13 @@
                         <h3>貸出</h3>
                         <p>本を借りる</p>
                     </a>
-                    
+
                     <a href="/return.html" class="selection-btn return">
                         <i class="fas fa-undo"></i>
                         <h3>返却</h3>
                         <p>本を返す</p>
                     </a>
-                    
+
                     <a href="/extend.html" class="selection-btn extend">
                         <i class="fas fa-clock"></i>
                         <h3>延長申請</h3>
