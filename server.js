@@ -1404,7 +1404,7 @@ app.post('/api/return-step4', async (req, res) => {
         // 422エラーの場合は詳細なメッセージを返す
         if (returnError.statusCode === 422) {
           res.status(422).json({
-            success: false,
+      success: false,
             message: `返却処理に失敗しました: ${returnError.message}`,
             error: {
               type: 'airtable_update_error',
@@ -1495,6 +1495,35 @@ app.get('/api/health', (req, res) => {
       hasAirtableBase: !!config.airtable.baseId
     }
   });
+});
+
+// 明示的な静的ファイル配信（Vercel対応）
+app.get('/borrow.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'borrow.html'));
+});
+
+app.get('/return.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'return.html'));
+});
+
+app.get('/extend.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'extend.html'));
+});
+
+app.get('/borrow.js', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'borrow.js'));
+});
+
+app.get('/return.js', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'return.js'));
+});
+
+app.get('/extend.js', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'extend.js'));
+});
+
+app.get('/app.js', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'app.js'));
 });
 
 // 404ハンドラー（全ての未定義ルート）
