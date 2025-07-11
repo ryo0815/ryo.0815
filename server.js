@@ -47,7 +47,7 @@ const LENDING_STEPS = {
 
 // ミドルウェア設定
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: true, // すべてのオリジンを許可（本番環境では適切に設定する）
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
