@@ -1,234 +1,177 @@
-# 📚 図書貸出ウェブアプリケーション
+# 📚 Book Lending Vision
 
-Google Cloud Vision APIを使って画像から書名を抽出し、Airtableと照合して図書の貸出処理を行うモダンなウェブアプリケーションです。
+Google Cloud Vision APIを使って画像から書名を抽出し、Airtableと照合して図書の貸出処理を行うウェブアプリケーション
 
-## ✨ 機能
+## 🌐 デモ
 
-- 📸 **画像OCR処理**: Google Cloud Vision APIで書籍画像からテキストを抽出
-- 🖱️ **ドラッグ&ドロップ**: 直感的な画像アップロード
-- 📚 **書籍検索**: Airtableの書籍マスタから自動検索
-- 👤 **生徒管理**: 生徒IDによる貸出者識別
-- 📝 **自動貸出処理**: レコード作成とステータス更新
-- 💻 **レスポンシブデザイン**: モバイル対応のモダンUI
-- 🔄 **リアルタイム処理**: 即座に結果を表示
+- **完全機能版**: https://book-lending-vision.vercel.app/
+- **静的デモ版**: https://ryo0815.github.io/ryo.0815/ (API機能は動作しません)
 
-## 🛠️ 技術スタック
+## 🚀 機能
 
-### バックエンド
-- **Node.js** - サーバー環境
-- **Express** - ウェブフレームワーク
-- **Multer** - ファイルアップロード処理
-- **Axios** - HTTP通信
+### 📖 貸出機能
+- 書籍の表紙を撮影
+- Google Cloud Vision APIで自動書名認識
+- Airtableデータベースとの照合
+- 生徒名入力による貸出処理
+- 4冊までの貸出制限
 
-### フロントエンド
-- **HTML5/CSS3** - マークアップとスタイリング
-- **Bootstrap 5** - UIコンポーネント
-- **JavaScript (ES6+)** - インタラクティブ機能
-- **Font Awesome** - アイコンライブラリ
+### 🔄 返却機能
+- 返却書籍の撮影・認識
+- 返却期限チェック
+- 遅延情報の表示
+- 自動返却処理
 
-### API連携
-- **Google Cloud Vision API** - 画像認識
-- **Airtable API** - データベース操作
+### ⏰ 延長申請機能
+- 返却期限2日前から申請可能
+- 7日間の延長処理
+- 最大1回までの延長制限
+- 現在の貸出状況確認
 
-## 🚀 セットアップ手順
+## 💻 技術スタック
 
-### 1. 依存関係のインストール
+- **Backend**: Node.js, Express
+- **Frontend**: Vanilla JavaScript, Bootstrap 5
+- **Database**: Airtable
+- **API**: Google Cloud Vision API
+- **Deployment**: Vercel
+- **CI/CD**: GitHub Actions
+
+## 🔧 ローカル環境での起動
+
+### 必要な環境変数
+
+`.env`ファイルを作成して以下の環境変数を設定してください：
 
 ```bash
+# Google Cloud Vision API
+GOOGLE_VISION_API_KEY=your_google_vision_api_key
+
+# Airtable
+AIRTABLE_API_KEY=your_airtable_api_key
+AIRTABLE_BASE_ID=your_airtable_base_id
+AIRTABLE_TABLE_BOOKS=Books
+AIRTABLE_TABLE_STUDENTS=Students
+AIRTABLE_TABLE_LOANS=Loans
+```
+
+### インストール・実行
+
+```bash
+# 依存関係をインストール
 npm install
-```
 
-### 2. 環境変数の設定
+# 開発サーバーを起動
+npm run dev
 
-`.env` ファイルは既に作成済みです。以下の内容が設定されています：
-
-```env
-# Google Cloud Vision API設定
-GOOGLE_CLOUD_API_KEY=AIzaSyC1Jdj2Z8qY7dvE6qdl5oD10XPagTS042o
-
-# Airtable設定
-AIRTABLE_API_KEY=patRewfzvma59WpfS.cdb72f848460991185fd923e1fa25e3141aa9b879c52167cf50c38ba41de12ae
-AIRTABLE_BASE_ID=appYrvQJhzPWP7rf6
-
-# テーブル名
-BOOKS_TABLE=BookM
-STUDENTS_TABLE=StudentsM
-LOANS_TABLE=Loans
-
-# テスト用データ
-TEST_STUDENT_ID=STU001
-```
-
-### 3. サーバー起動
-
-```bash
+# または本番環境での起動
 npm start
 ```
 
-または
+アプリケーションは `http://localhost:3000` でアクセス可能です。
+
+## 🚀 Vercelでのデプロイ
+
+### 1. Vercelプロジェクトの作成
+
+1. [Vercel](https://vercel.com/)にログイン
+2. 「New Project」をクリック
+3. GitHubリポジトリを選択
+4. 自動的にビルド・デプロイが開始
+
+### 2. 環境変数の設定
+
+Vercelダッシュボードで以下の環境変数を設定：
 
 ```bash
-node server.js
+GOOGLE_VISION_API_KEY
+AIRTABLE_API_KEY
+AIRTABLE_BASE_ID
+AIRTABLE_TABLE_BOOKS
+AIRTABLE_TABLE_STUDENTS
+AIRTABLE_TABLE_LOANS
 ```
 
-### 4. アクセス
+### 3. GitHub Actions用のSecrets設定
 
-ブラウザで **http://localhost:3000** にアクセスしてください。
+GitHubリポジトリの Settings > Secrets で以下を設定：
 
-## 📋 Airtableテーブル構成
-
-### 1. BookM テーブル (書籍マスタ)
-| フィールド名 | 型 | 説明 |
-|---|---|---|
-| Title | Single line text | 書籍タイトル |
-| Status | Single select | 貸出状態（「貸出可」「貸出中」） |
-| ISBN | Single line text | ISBN番号 |
-
-### 2. StudentsM テーブル (生徒マスタ)
-| フィールド名 | 型 | 説明 |
-|---|---|---|
-| Name | Single line text | 生徒名 |
-| StudentID | Single line text | 生徒ID |
-
-### 3. Loans テーブル (貸出履歴)
-| フィールド名 | 型 | 説明 |
-|---|---|---|
-| BookID | Link to another record | 書籍ID（BookMテーブルへのリンク） |
-| StudentID | Link to another record | 生徒ID（StudentsMテーブルへのリンク） |
-| StartDate | Date | 貸出日 |
-| DueDate | Date | 返却期限 |
-
-## 🖥️ 使用方法
-
-### 1. システム状態確認
-- アプリ起動時に自動でAPI接続状況を確認
-- 緑：正常、赤：エラー
-
-### 2. 画像アップロード
-- **ドラッグ&ドロップ**: 画像ファイルを画面にドラッグ
-- **クリック選択**: アップロードエリアをクリックしてファイル選択
-- 対応形式: JPG、PNG、GIF、WEBP
-
-### 3. 生徒ID入力
-- 貸出対象の生徒IDを入力
-- StudentssMテーブルに存在するIDである必要があります
-
-### 4. 処理実行
-- 「図書を貸し出す」ボタンをクリック
-- 自動的に以下の処理が実行されます：
-  1. 画像からテキスト抽出
-  2. 書籍検索
-  3. 貸出可能状態の確認
-  4. 生徒情報の取得
-  5. 貸出レコードの作成
-  6. 書籍ステータスの更新
-
-### 5. 結果確認
-- 成功時：貸出詳細情報を表示
-- エラー時：原因と詳細情報を表示
-
-## 🔧 API仕様
-
-### GET /api/health
-システム状態を取得
-
-**レスポンス例:**
-```json
-{
-  "status": "OK",
-  "timestamp": "2024-07-10T07:36:00.000Z",
-  "config": {
-    "hasGoogleCloudKey": true,
-    "hasAirtableKey": true,
-    "hasAirtableBase": true
-  }
-}
+```bash
+VERCEL_TOKEN         # Vercelの個人アクセストークン
+VERCEL_ORG_ID        # Vercelの組織ID
+VERCEL_PROJECT_ID    # VercelのプロジェクトID
 ```
 
-### POST /api/lend-book
-図書貸出処理を実行
+## 📊 データベース構造
 
-**リクエスト:** (multipart/form-data)
-- `bookImage`: 画像ファイル
-- `studentId`: 生徒ID
+### Books テーブル
+- `書名`: 書籍タイトル
+- `著者`: 著者名
+- `貸出状況`: 「貸出可」「貸出中」
 
-**レスポンス例 (成功):**
-```json
-{
-  "success": true,
-  "message": "図書貸出処理が完了しました！",
-  "data": {
-    "book": { "title": "サンプル書籍", "id": "rec123" },
-    "student": { "name": "田中太郎", "id": "STU001" },
-    "loan": { "startDate": "2024-07-10", "dueDate": "2024-07-24" },
-    "extractedText": "抽出されたテキスト..."
-  }
-}
-```
+### Students テーブル
+- `生徒名`: 生徒の名前
+- `学年`: 学年情報
 
-## 🎨 UI機能
+### Loans テーブル
+- `生徒`: 貸出者（Students テーブルとのリンク）
+- `書籍`: 貸出書籍（Books テーブルとのリンク）
+- `貸出日`: 貸出日時
+- `返却予定日`: 返却期限
+- `返却日`: 実際の返却日時
+- `返却状況`: 「貸出中」「返却済」
+- `延長済み`: 延長処理の有無
 
-### デザイン特徴
-- **グラデーション背景**: モダンな視覚効果
-- **グラスモーフィズム**: 透明感のあるカードデザイン
-- **アニメーション**: スムーズなフェードイン効果
-- **レスポンシブ**: スマートフォン・タブレット対応
+## 🎯 使用方法
 
-### インタラクション
-- **ホバー効果**: ボタンやエリアの視覚フィードバック
-- **ドラッグ状態表示**: ファイルドラッグ時の視覚的変化
-- **ローディング表示**: 処理中のスピナーと進捗メッセージ
-- **画像プレビュー**: アップロード前の画像確認
+1. **書籍の貸出**
+   - 「貸出」をクリック
+   - 書籍の表紙を撮影
+   - 認識された書名を確認
+   - 生徒名を入力
+   - 貸出完了
 
-## 🔍 トラブルシューティング
+2. **書籍の返却**
+   - 「返却」をクリック
+   - 返却書籍を撮影
+   - 認識された書名を確認
+   - 返却処理完了
+
+3. **延長申請**
+   - 「延長申請」をクリック
+   - 生徒名を入力
+   - 貸出中の書籍一覧を確認
+   - 延長したい書籍を選択
+   - 延長処理完了
+
+## 🔒 セキュリティ
+
+- 環境変数による機密情報の管理
+- セッションベースの処理状態管理
+- API キーの適切な保護
+
+## 🐛 トラブルシューティング
 
 ### よくある問題
 
-**1. API接続エラー**
-- 環境変数が正しく設定されているか確認
-- APIキーの有効性を確認
+1. **画像認識がうまくいかない**
+   - 明るい場所で撮影
+   - 書籍の表紙全体が写るように撮影
+   - 文字がはっきり見えるように撮影
 
-**2. 画像認識精度の問題**
-- 書籍タイトルが明確に写っている画像を使用
-- 照明条件を改善
-- 画像の解像度を確認
+2. **デプロイエラー**
+   - 環境変数が正しく設定されているか確認
+   - Vercelのビルドログを確認
+   - node_modules を削除して再インストール
 
-**3. 書籍が見つからない**
-- Airtableの書籍タイトルと画像のテキストが一致しているか確認
-- 部分一致検索のため、主要なキーワードが含まれている必要があります
-
-**4. 生徒が見つからない**
-- StudentsMテーブルに該当する生徒IDが存在するか確認
-
-## 📝 開発情報
-
-### ファイル構成
-```
-book-lending-vision/
-├── server.js              # Expressサーバー
-├── package.json           # プロジェクト設定
-├── .env                   # 環境変数
-├── public/
-│   ├── index.html         # メインHTML
-│   └── app.js            # フロントエンドJS
-└── README.md             # このファイル
-```
-
-### 拡張機能案
-- 📊 貸出統計ダッシュボード
-- 📧 返却期限通知機能
-- 📱 PWA対応
-- 🔍 書籍検索機能
-- 👥 複数書籍同時貸出
+3. **データベース接続エラー**
+   - Airtable API キーが正しいか確認
+   - ベースIDとテーブル名が正しいか確認
 
 ## 📄 ライセンス
 
-ISC
+ISC License
 
-## 👥 作成者
+## 🤝 貢献
 
-図書貸出ウェブアプリ開発チーム
-
----
-
-**🌟 使用開始するには、ブラウザで http://localhost:3000 にアクセスしてください！** 
+プルリクエストや Issue は歓迎します！ 
