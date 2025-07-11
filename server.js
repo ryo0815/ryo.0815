@@ -20,7 +20,7 @@ app.use(session({
 // 環境変数の設定
 const config = {
   googleCloud: {
-    apiKey: process.env.GOOGLE_CLOUD_API_KEY,
+    apiKey: process.env.GOOGLE_VISION_API_KEY,
     apiUrl: 'https://vision.googleapis.com/v1/images:annotate'
   },
   airtable: {
@@ -28,9 +28,9 @@ const config = {
     baseId: process.env.AIRTABLE_BASE_ID,
     baseUrl: 'https://api.airtable.com/v0',
     tables: {
-      books: process.env.BOOKS_TABLE || 'Books',
-      students: process.env.STUDENTS_TABLE || 'Students',
-      loans: process.env.LOANS_TABLE || 'Loans'
+      books: process.env.AIRTABLE_TABLE_BOOKS || 'Books',
+      students: process.env.AIRTABLE_TABLE_STUDENTS || 'Students',
+      loans: process.env.AIRTABLE_TABLE_LOANS || 'Loans'
     }
   }
 };
@@ -651,9 +651,32 @@ app.get('/favicon.ico', (req, res) => {
 // ステップ1: 書籍画像をアップロードして検索
 app.post('/api/step1', upload.single('bookImage'), async (req, res) => {
   try {
-    const imageFile = req.file;
-
     console.log('🚀 ステップ1: 書籍検索を開始します');
+    
+    // 環境変数の確認
+    console.log('🔧 環境変数チェック:');
+    console.log('  - Google Vision API Key:', !!config.googleCloud.apiKey);
+    console.log('  - Airtable API Key:', !!config.airtable.apiKey);
+    console.log('  - Airtable Base ID:', !!config.airtable.baseId);
+    console.log('  - Books Table:', config.airtable.tables.books);
+    console.log('  - Students Table:', config.airtable.tables.students);
+    console.log('  - Loans Table:', config.airtable.tables.loans);
+    
+    if (!config.googleCloud.apiKey) {
+      return res.status(500).json({
+        success: false,
+        message: 'Google Vision API キーが設定されていません。'
+      });
+    }
+    
+    if (!config.airtable.apiKey || !config.airtable.baseId) {
+      return res.status(500).json({
+        success: false,
+        message: 'Airtable設定が不完全です。'
+      });
+    }
+
+    const imageFile = req.file;
     console.log('📸 画像ファイル:', imageFile ? imageFile.originalname : 'なし');
 
     if (!imageFile) {
@@ -665,8 +688,10 @@ app.post('/api/step1', upload.single('bookImage'), async (req, res) => {
 
     // 画像をbase64エンコード
     const base64Image = imageFile.buffer.toString('base64');
+    console.log('📊 Base64エンコード完了:', base64Image.length, '文字');
     
     // 画像からテキストを抽出
+    console.log('🔍 Google Vision API でテキスト抽出開始...');
     const extractedText = await extractTextFromImage(base64Image);
     if (!extractedText) {
       return res.status(400).json({ 
@@ -675,21 +700,28 @@ app.post('/api/step1', upload.single('bookImage'), async (req, res) => {
       });
     }
 
+    console.log('📝 抽出されたテキスト:', extractedText.substring(0, 200) + '...');
+
     // 抽出されたテキストから書籍を検索
     const lines = extractedText.split('\n').filter(line => line.trim().length > 0);
+    console.log('🔍 検索対象行数:', lines.length);
+    
     let bookFound = null;
     
     for (const line of lines) {
       const trimmedLine = line.trim();
       if (trimmedLine.length > 3) {
+        console.log('🔍 書籍検索中:', trimmedLine);
         bookFound = await searchBookInAirtable(trimmedLine);
         if (bookFound) {
+          console.log('✅ 書籍が見つかりました:', trimmedLine);
           break;
         }
       }
     }
 
     if (!bookFound) {
+      console.log('❌ 書籍が見つかりませんでした');
       return res.status(404).json({ 
         success: false, 
         message: '申し訳ございませんが、この書籍は見つかりませんでした。' 
@@ -719,6 +751,7 @@ app.post('/api/step1', upload.single('bookImage'), async (req, res) => {
     req.session.book = bookFound;
     req.session.step = LENDING_STEPS.BOOK_FOUND;
 
+    console.log('✅ ステップ1処理完了');
     res.json({
       success: true,
       message: '🙆‍♀️この本は貸出可能です',
@@ -734,10 +767,23 @@ app.post('/api/step1', upload.single('bookImage'), async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ ステップ1エラー:', error);
+    console.error('❌ ステップ1エラー詳細:');
+    console.error('  - エラーメッセージ:', error.message);
+    console.error('  - エラータイプ:', error.constructor.name);
+    console.error('  - スタックトレース:', error.stack);
+    
+    if (error.response) {
+      console.error('  - HTTP レスポンス:', error.response.status, error.response.statusText);
+      console.error('  - レスポンスデータ:', error.response.data);
+    }
+    
     res.status(500).json({
-        success: false, 
-      message: 'エラーが発生しました。もう一度お試しください。'
+      success: false, 
+      message: 'エラーが発生しました。もう一度お試しください。',
+      error: {
+        type: error.constructor.name,
+        message: error.message
+      }
     });
   }
 });
@@ -1490,9 +1536,18 @@ app.get('/api/health', (req, res) => {
     status: 'OK', 
     timestamp: new Date().toISOString(),
     config: {
-      hasGoogleCloudKey: !!config.googleCloud.apiKey,
+      hasGoogleVisionKey: !!config.googleCloud.apiKey,
       hasAirtableKey: !!config.airtable.apiKey,
-      hasAirtableBase: !!config.airtable.baseId
+      hasAirtableBase: !!config.airtable.baseId,
+      tables: {
+        books: config.airtable.tables.books,
+        students: config.airtable.tables.students,
+        loans: config.airtable.tables.loans
+      }
+    },
+    environment: {
+      nodeEnv: process.env.NODE_ENV || 'development',
+      port: process.env.PORT || 3000
     }
   });
 });
