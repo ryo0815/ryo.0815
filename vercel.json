@@ -11,13 +11,5 @@
       "src": "/(.*)",
       "dest": "server.js"
     }
-  ],
-  "env": {
-    "GOOGLE_VISION_API_KEY": "@google_vision_api_key",
-    "AIRTABLE_API_KEY": "@airtable_api_key",
-    "AIRTABLE_BASE_ID": "@airtable_base_id",
-    "AIRTABLE_TABLE_BOOKS": "@airtable_table_books",
-    "AIRTABLE_TABLE_STUDENTS": "@airtable_table_students",
-    "AIRTABLE_TABLE_LOANS": "@airtable_table_loans"
-  }
+  ]
 } 
