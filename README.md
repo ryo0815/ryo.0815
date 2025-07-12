@@ -4,60 +4,126 @@ Google Cloud Vision APIを使って画像から書名を抽出し、Airtableと�
 
 ## 🌐 デモ
 
-- **完全機能版**: https://book-lending-vision.vercel.app/
-- **静的デモ版**: https://ryo0815.github.io/ryo.0815/ (API機能は動作しません)
+- **完全機能版**: https://book-lending-vision-dqbvon9ua-ryo18375-6134s-projects.vercel.app/
+- **GitHub Pages（静的版）**: https://ryo0815.github.io/ryo.0815/ (API機能は動作しません)
 
-## 🚀 機能
+## 🚀 主要機能
 
 ### 📖 貸出機能
-- 書籍の表紙を撮影
-- Google Cloud Vision APIで自動書名認識
-- Airtableデータベースとの照合
-- 生徒名入力による貸出処理
-- 4冊までの貸出制限
+- **カメラ撮影 or ファイルアップロード**: 書籍の表紙を撮影またはファイルから選択
+- **Google Cloud Vision APIによる文字認識**: 書籍タイトルの自動抽出
+- **Airtableデータベース照合**: 書籍情報の自動検索
+- **生徒情報管理**: 生徒名による貸出者確認・新規登録
+- **貸出制限管理**: 一人4冊までの貸出制限
+- **返却期限設定**: 2週間後の自動返却期限設定
+- **リアルタイム処理**: 5段階のステップで安全な貸出処理
 
 ### 🔄 返却機能
-- 返却書籍の撮影・認識
-- 返却期限チェック
-- 遅延情報の表示
-- 自動返却処理
+- **書籍認識**: 返却する書籍の自動認識
+- **貸出状況確認**: 現在の貸出状況と返却期限の確認
+- **延滞チェック**: 返却期限を過ぎた書籍の延滞警告
+- **返却処理**: 自動返却処理とデータベース更新
+- **返却完了通知**: 返却完了の確認メッセージ
 
 ### ⏰ 延長申請機能
-- 返却期限2日前から申請可能
-- 7日間の延長処理
-- 最大1回までの延長制限
-- 現在の貸出状況確認
+- **名前入力による貸出一覧取得**: 現在借りている書籍一覧の表示
+- **延長可能性チェック**: 延長可能な書籍の自動判定
+- **延長処理**: 7日間の延長処理
+- **延長制限**: 最大1回までの延長制限
+- **延長履歴管理**: 延長回数の記録と管理
+
+### 📷 カメラ機能
+- **ブラウザカメラサポート**: すべてのページでカメラ機能を利用可能
+- **リアルタイムプレビュー**: 撮影前のリアルタイムプレビュー
+- **背面カメラ優先**: モバイルデバイスの背面カメラを自動選択
+- **画像キャプチャ**: 高品質な画像キャプチャ機能
+- **ファイル変換**: 撮影した画像の自動ファイル変換
 
 ## 💻 技術スタック
 
-- **Backend**: Node.js, Express
-- **Frontend**: Vanilla JavaScript, Bootstrap 5
-- **Database**: Airtable
-- **API**: Google Cloud Vision API
-- **Deployment**: Vercel
-- **CI/CD**: GitHub Actions
+### Backend
+- **Node.js**: サーバーサイド JavaScript ランタイム
+- **Express**: Node.js ウェブアプリケーションフレームワーク
+- **Multer**: ファイルアップロード処理
+- **Express-session**: セッション管理
+- **CORS**: クロスオリジンリソース共有
+
+### Frontend
+- **Vanilla JavaScript**: 純粋なJavaScriptによる実装
+- **Bootstrap 5**: レスポンシブデザインフレームワーク
+- **Font Awesome**: アイコンライブラリ
+- **HTML5 Canvas**: 画像キャプチャ機能
+- **MediaDevices API**: カメラアクセス機能
+
+### Database & APIs
+- **Airtable**: クラウドデータベース
+- **Google Cloud Vision API**: 画像内テキスト認識
+- **Axios**: HTTP クライアント
+
+### Development & Deployment
+- **Vercel**: クラウドプラットフォーム
+- **GitHub**: ソースコード管理
+- **npm**: パッケージマネージャー
+
+## 🗂️ データベース構造
+
+### Books テーブル
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| 書名 | Single line text | 書籍のタイトル |
+| 著者 | Single line text | 著者名 |
+| 出版社 | Single line text | 出版社名 |
+| 貸出状況 | Single select | 「貸出可」「貸出中」 |
+| 最終更新日 | Date | 最終更新日時 |
+
+### Students テーブル
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| 生徒名 | Single line text | 生徒の名前 |
+| 学年 | Single line text | 学年情報 |
+| 貸出中冊数 | Number | 現在借りている本の数 |
+| 登録日 | Date | 初回登録日 |
+
+### Loans テーブル
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| 生徒 | Link to Students | 貸出者（Students テーブルとのリンク） |
+| 書籍 | Link to Books | 貸出書籍（Books テーブルとのリンク） |
+| 貸出日 | Date | 貸出日時 |
+| 返却予定日 | Date | 返却期限 |
+| 返却日 | Date | 実際の返却日時 |
+| 返却状況 | Single select | 「貸出中」「返却済」「延滞」 |
+| 延長済み | Checkbox | 延長処理の有無 |
+| 延長回数 | Number | 延長回数 |
 
 ## 🔧 ローカル環境での起動
 
-### 必要な環境変数
+### 1. 環境変数の設定
 
-`.env`ファイルを作成して以下の環境変数を設定してください：
+`.env`ファイルを作成して以下の環境変数を設定：
 
 ```bash
 # Google Cloud Vision API
-GOOGLE_VISION_API_KEY=your_google_vision_api_key
+GOOGLE_VISION_API_KEY=your_google_vision_api_key_here
 
-# Airtable
-AIRTABLE_API_KEY=your_airtable_api_key
-AIRTABLE_BASE_ID=your_airtable_base_id
+# Airtable Database
+AIRTABLE_API_KEY=your_airtable_api_key_here
+AIRTABLE_BASE_ID=your_airtable_base_id_here
 AIRTABLE_TABLE_BOOKS=Books
 AIRTABLE_TABLE_STUDENTS=Students
 AIRTABLE_TABLE_LOANS=Loans
+
+# Optional: Session Secret
+SESSION_SECRET=your_session_secret_here
 ```
 
-### インストール・実行
+### 2. インストール・実行
 
 ```bash
+# リポジトリをクローン
+git clone https://github.com/ryo0815/ryo.0815.git
+cd ryo.0815
+
 # 依存関係をインストール
 npm install
 
@@ -74,99 +140,188 @@ npm start
 
 ### 1. Vercelプロジェクトの作成
 
-1. [Vercel](https://vercel.com/)にログイン
-2. 「New Project」をクリック
-3. GitHubリポジトリを選択
-4. 自動的にビルド・デプロイが開始
+```bash
+# Vercel CLIを使用
+npx vercel
+
+# または手動でVercelダッシュボードから設定
+# 1. https://vercel.com/ にログイン
+# 2. 「New Project」をクリック
+# 3. GitHubリポジトリを選択
+# 4. 自動的にビルド・デプロイが開始
+```
 
 ### 2. 環境変数の設定
 
 Vercelダッシュボードで以下の環境変数を設定：
 
 ```bash
-GOOGLE_VISION_API_KEY
-AIRTABLE_API_KEY
-AIRTABLE_BASE_ID
-AIRTABLE_TABLE_BOOKS
-AIRTABLE_TABLE_STUDENTS
-AIRTABLE_TABLE_LOANS
+GOOGLE_VISION_API_KEY=your_google_vision_api_key
+AIRTABLE_API_KEY=your_airtable_api_key
+AIRTABLE_BASE_ID=your_airtable_base_id
+AIRTABLE_TABLE_BOOKS=Books
+AIRTABLE_TABLE_STUDENTS=Students
+AIRTABLE_TABLE_LOANS=Loans
 ```
 
-### 3. GitHub Actions用のSecrets設定
+### 3. デプロイ設定
 
-GitHubリポジトリの Settings > Secrets で以下を設定：
+`vercel.json`ファイルで以下の設定を使用：
 
-```bash
-VERCEL_TOKEN         # Vercelの個人アクセストークン
-VERCEL_ORG_ID        # Vercelの組織ID
-VERCEL_PROJECT_ID    # VercelのプロジェクトID
+```json
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "server.js"
+    }
+  ]
+}
 ```
-
-## 📊 データベース構造
-
-### Books テーブル
-- `書名`: 書籍タイトル
-- `著者`: 著者名
-- `貸出状況`: 「貸出可」「貸出中」
-
-### Students テーブル
-- `生徒名`: 生徒の名前
-- `学年`: 学年情報
-
-### Loans テーブル
-- `生徒`: 貸出者（Students テーブルとのリンク）
-- `書籍`: 貸出書籍（Books テーブルとのリンク）
-- `貸出日`: 貸出日時
-- `返却予定日`: 返却期限
-- `返却日`: 実際の返却日時
-- `返却状況`: 「貸出中」「返却済」
-- `延長済み`: 延長処理の有無
 
 ## 🎯 使用方法
 
-1. **書籍の貸出**
-   - 「貸出」をクリック
-   - 書籍の表紙を撮影
-   - 認識された書名を確認
-   - 生徒名を入力
-   - 貸出完了
+### 📖 書籍の貸出
 
-2. **書籍の返却**
-   - 「返却」をクリック
-   - 返却書籍を撮影
-   - 認識された書名を確認
-   - 返却処理完了
+1. メインページで「貸出」をクリック
+2. 書籍の表紙を撮影またはファイルから選択
+3. Google Vision APIが自動で書名を認識
+4. 認識結果を確認・修正
+5. 生徒名を入力（新規の場合は自動登録）
+6. 貸出確認画面で内容を確認
+7. 貸出完了
 
-3. **延長申請**
-   - 「延長申請」をクリック
-   - 生徒名を入力
-   - 貸出中の書籍一覧を確認
-   - 延長したい書籍を選択
-   - 延長処理完了
+### 🔄 書籍の返却
 
-## 🔒 セキュリティ
+1. メインページで「返却」をクリック
+2. 返却する書籍を撮影またはファイルから選択
+3. 書籍の認識結果を確認
+4. 現在の貸出状況を確認
+5. 返却処理を実行
+6. 返却完了
 
-- 環境変数による機密情報の管理
-- セッションベースの処理状態管理
-- API キーの適切な保護
+### ⏰ 延長申請
+
+1. メインページで「延長申請」をクリック
+2. 生徒名を入力
+3. 現在借りている書籍一覧を確認
+4. 延長したい書籍を選択
+5. 延長処理を実行（7日間延長）
+6. 延長完了
+
+## 📱 対応デバイス
+
+### 📱 スマートフォン
+- **iOS Safari**: 完全対応
+- **Android Chrome**: 完全対応
+- **カメラ機能**: 背面カメラ優先で自動選択
+
+### 💻 PC・タブレット
+- **Chrome**: 完全対応
+- **Firefox**: 完全対応
+- **Safari**: 完全対応
+- **Edge**: 完全対応
+
+### 📷 カメラ機能
+- **リアルタイムプレビュー**: 撮影前の映像確認
+- **高解像度撮影**: 1280x720の高品質画像
+- **JPEG圧縮**: 効率的なファイルサイズ管理
+
+## 🔐 セキュリティ
+
+### 🔒 データ保護
+- **環境変数管理**: 機密情報の適切な管理
+- **セッションベース**: 安全な状態管理
+- **CORS設定**: クロスオリジンリクエストの制御
+
+### 🛡️ API セキュリティ
+- **API キー保護**: サーバーサイドでのAPI キー管理
+- **リクエスト制限**: 不正なリクエストの防止
+- **エラーハンドリング**: 適切なエラー処理
+
+## 📊 システム要件
+
+### 最低要件
+- **Node.js**: 16.0.0以上
+- **ブラウザ**: モダンブラウザ（ES6対応）
+- **カメラ**: デバイスカメラ（オプション）
+- **インターネット**: 安定したインターネット接続
+
+### 推奨要件
+- **Node.js**: 18.0.0以上
+- **メモリ**: 512MB以上
+- **ストレージ**: 100MB以上
 
 ## 🐛 トラブルシューティング
 
-### よくある問題
+### 画像認識の問題
+```bash
+# 問題: 書籍タイトルが正しく認識されない
+# 解決法:
+1. 明るい場所で撮影
+2. 書籍の表紙全体をフレームに収める
+3. 文字がはっきり見えるよう調整
+4. 手ブレを避ける
+```
 
-1. **画像認識がうまくいかない**
-   - 明るい場所で撮影
-   - 書籍の表紙全体が写るように撮影
-   - 文字がはっきり見えるように撮影
+### カメラアクセスの問題
+```bash
+# 問題: カメラが起動しない
+# 解決法:
+1. ブラウザの設定でカメラアクセスを許可
+2. HTTPSでアクセス（本番環境）
+3. 他のアプリケーションがカメラを使用していないか確認
+```
 
-2. **デプロイエラー**
-   - 環境変数が正しく設定されているか確認
-   - Vercelのビルドログを確認
-   - node_modules を削除して再インストール
+### データベース接続の問題
+```bash
+# 問題: データベースに接続できない
+# 解決法:
+1. Airtable API キーの確認
+2. ベースIDの確認
+3. テーブル名の確認
+4. ネットワーク接続の確認
+```
 
-3. **データベース接続エラー**
-   - Airtable API キーが正しいか確認
-   - ベースIDとテーブル名が正しいか確認
+### デプロイメントの問題
+```bash
+# 問題: Vercelでのデプロイが失敗する
+# 解決法:
+1. 環境変数の設定確認
+2. vercel.json の設定確認
+3. ビルドログの確認
+4. 依存関係の更新
+```
+
+## 🔄 更新履歴
+
+### v1.0.0 (2024-01-01)
+- 初回リリース
+- 基本的な貸出・返却機能
+- Google Cloud Vision API統合
+- Airtableデータベース統合
+
+### v1.1.0 (2024-01-15)
+- 延長申請機能追加
+- UIデザインの改善
+- エラーハンドリングの強化
+
+### v1.2.0 (2024-02-01)
+- カメラ機能の追加
+- レスポンシブデザイン対応
+- セッション管理の改善
+
+### v1.3.0 (2024-02-15)
+- 延長申請UIの修正
+- JavaScript エラーの修正
+- デプロイメントの最適化
 
 ## 📄 ライセンス
 
@@ -174,4 +329,24 @@ ISC License
 
 ## 🤝 貢献
 
-プルリクエストや Issue は歓迎します！ 
+プルリクエストや Issue は歓迎します！
+
+### 貢献方法
+1. このリポジトリをフォーク
+2. 新しいブランチを作成 (`git checkout -b feature/amazing-feature`)
+3. 変更をコミット (`git commit -m 'Add amazing feature'`)
+4. ブランチにプッシュ (`git push origin feature/amazing-feature`)
+5. プルリクエストを作成
+
+## 📞 お問い合わせ
+
+- **GitHub**: https://github.com/ryo0815/ryo.0815
+- **Issues**: https://github.com/ryo0815/ryo.0815/issues
+
+## 🙏 謝辞
+
+- Google Cloud Vision API
+- Airtable
+- Vercel
+- Bootstrap
+- Font Awesome 
