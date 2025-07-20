@@ -20,7 +20,7 @@ app.use(session({
 // 環境変数の設定
 const config = {
   googleCloud: {
-    apiKey: process.env.GOOGLE_VISION_API_KEY,
+    apiKey: process.env.GOOGLE_VISION_API_KEY || process.env.GOOGLE_CLOUD_API_KEY,
     apiUrl: 'https://vision.googleapis.com/v1/images:annotate'
   },
   airtable: {
@@ -28,12 +28,20 @@ const config = {
     baseId: process.env.AIRTABLE_BASE_ID,
     baseUrl: 'https://api.airtable.com/v0',
     tables: {
-      books: process.env.AIRTABLE_TABLE_BOOKS || 'Books',
-      students: process.env.AIRTABLE_TABLE_STUDENTS || 'Students',
-      loans: process.env.AIRTABLE_TABLE_LOANS || 'Loans'
+      books: process.env.AIRTABLE_TABLE_BOOKS || process.env.BOOKS_TABLE || 'Books',
+      students: process.env.AIRTABLE_TABLE_STUDENTS || process.env.STUDENTS_TABLE || 'Students',
+      loans: process.env.AIRTABLE_TABLE_LOANS || process.env.LOANS_TABLE || 'Loans'
     }
   }
 };
+
+// 環境変数のデバッグ情報
+console.log('🔧 環境変数設定:');
+console.log('  - GOOGLE_VISION_API_KEY:', process.env.GOOGLE_VISION_API_KEY ? '設定済み' : '未設定');
+console.log('  - GOOGLE_CLOUD_API_KEY:', process.env.GOOGLE_CLOUD_API_KEY ? '設定済み' : '未設定');
+console.log('  - AIRTABLE_API_KEY:', process.env.AIRTABLE_API_KEY ? '設定済み' : '未設定');
+console.log('  - AIRTABLE_BASE_ID:', process.env.AIRTABLE_BASE_ID ? '設定済み' : '未設定');
+console.log('  - ADMIN_PASSWORD:', process.env.ADMIN_PASSWORD ? '設定済み' : '未設定');
 
 // 貸出ステップの定義
 const LENDING_STEPS = {
@@ -50,8 +58,8 @@ app.use(cors({
   origin: true, // すべてのオリジンを許可（本番環境では適切に設定する）
   credentials: true
 }));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // リクエストログ
 app.use((req, res, next) => {
@@ -65,7 +73,7 @@ app.use(express.static('public'));
 const storage = multer.memoryStorage();
 const upload = multer({ 
   storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB制限
+  limits: { fileSize: 50 * 1024 * 1024 } // 50MB制限
 });
 
 // 日付フォーマット関数
@@ -83,6 +91,11 @@ function formatDate(date) {
 async function extractTextFromImage(base64Image) {
   try {
     console.log('📸 画像からテキストを抽出中...');
+    
+    // APIキーの確認
+    if (!config.googleCloud.apiKey) {
+      throw new Error('Google Cloud Vision APIキーが設定されていません。環境変数GOOGLE_VISION_API_KEYまたはGOOGLE_CLOUD_API_KEYを設定してください。');
+    }
     
     const requestBody = {
       requests: [
@@ -1595,6 +1608,274 @@ app.get('/api/debug/book/:bookId/loans', async (req, res) => {
   }
 });
 
+// 管理者認証
+app.post('/api/admin/login', (req, res) => {
+  try {
+    const { password } = req.body;
+    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+    
+    if (password === adminPassword) {
+      req.session.isAdmin = true;
+      res.json({ success: true, message: '認証成功' });
+    } else {
+      res.status(401).json({ success: false, error: 'パスワードが正しくありません' });
+    }
+  } catch (error) {
+    console.error('❌ 管理者認証エラー:', error);
+    res.status(500).json({ success: false, error: '認証処理中にエラーが発生しました' });
+  }
+});
+
+// 管理者認証チェック
+function requireAdmin(req, res, next) {
+  if (req.session.isAdmin) {
+    next();
+  } else {
+    res.status(401).json({ success: false, error: '管理者認証が必要です' });
+  }
+}
+
+// 画像解析API（管理者専用）
+app.post('/api/admin/analyze-image', requireAdmin, async (req, res) => {
+  try {
+    const { imageData } = req.body;
+    
+    if (!imageData) {
+      return res.status(400).json({ success: false, error: '画像データが提供されていません' });
+    }
+    
+    console.log('📸 管理者: 画像解析を開始');
+    
+    // Vision APIでテキスト抽出
+    const extractedText = await extractTextFromImage(imageData);
+    
+    if (!extractedText) {
+      return res.status(400).json({ success: false, error: '画像からテキストを抽出できませんでした' });
+    }
+    
+    // 抽出されたテキストから書籍情報を解析
+    const bookInfo = parseBookInfoFromText(extractedText);
+    
+    console.log('✅ 管理者: 画像解析完了', bookInfo);
+    
+    res.json({
+      success: true,
+      ...bookInfo
+    });
+    
+  } catch (error) {
+    console.error('❌ 管理者画像解析エラー:', error);
+    res.status(500).json({ success: false, error: '画像解析中にエラーが発生しました' });
+  }
+});
+
+// 書籍登録API（管理者専用）
+app.post('/api/admin/register-book', requireAdmin, async (req, res) => {
+  try {
+    const { title, author, isbn, publisher, description, tags, imageData } = req.body;
+    
+    if (!title) {
+      return res.status(400).json({ success: false, error: 'タイトルは必須です' });
+    }
+    
+    console.log('📚 管理者: 書籍登録を開始', { title, author, isbn, publisher, tags });
+    
+    // Airtableに書籍を登録
+    const bookRecord = await registerBookToAirtable({
+      title,
+      author,
+      isbn,
+      publisher,
+      description,
+      tags,
+      imageData
+    });
+    
+    console.log('✅ 管理者: 書籍登録完了', bookRecord.id);
+    
+    res.json({
+      success: true,
+      message: '書籍の登録が完了しました',
+      bookId: bookRecord.id
+    });
+    
+  } catch (error) {
+    console.error('❌ 管理者書籍登録エラー:', {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+    
+    res.status(500).json({ 
+      success: false, 
+      error: '書籍登録中にエラーが発生しました',
+      details: error.response?.data || error.message
+    });
+  }
+});
+
+// テキストから書籍情報を解析する関数
+function parseBookInfoFromText(text) {
+  const lines = text.split('\n').map(line => line.trim()).filter(line => line);
+  
+  let title = '';
+  let author = '';
+  let isbn = '';
+  let publisher = '';
+  let description = '';
+  let tags = [];
+  
+  // タイトルは最初の行または「著者」の前の行を想定
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    // ISBNの検出（13桁または10桁の数字）
+    const isbnMatch = line.match(/\b(\d{10}|\d{13})\b/);
+    if (isbnMatch && !isbn) {
+      isbn = isbnMatch[1];
+    }
+    
+    // 著者の検出（「著」「著者」「編」「編者」などのキーワード）
+    if (line.includes('著') || line.includes('編') || line.includes('作')) {
+      if (!author) {
+        author = line.replace(/[著編作]/g, '').trim();
+      }
+    }
+    
+    // 出版社の検出（「出版」「社」「株式会社」などのキーワード）
+    if (line.includes('出版') || line.includes('社') || line.includes('株式会社')) {
+      if (!publisher) {
+        publisher = line.trim();
+      }
+    }
+  }
+  
+  // タグの自動提案（既存のタグのみ）
+  const titleLower = title.toLowerCase();
+  const authorLower = author.toLowerCase();
+  
+  // 既存のタグのみを使用
+  if (titleLower.includes('英検') || titleLower.includes('英語') || authorLower.includes('旺文社')) {
+    tags.push('英検');
+  }
+  if (titleLower.includes('過去問') || titleLower.includes('問題集')) {
+    tags.push('過去問');
+  }
+  
+  // 重複を除去
+  tags = [...new Set(tags)];
+  
+  // タイトルは最初の有効な行を想定
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lineIsbnMatch = line.match(/\b(\d{10}|\d{13})\b/);
+    if (line && !line.includes('著') && !line.includes('編') && !line.includes('作') && 
+        !line.includes('出版') && !line.includes('社') && !lineIsbnMatch) {
+      title = line;
+      break;
+    }
+  }
+  
+  return {
+    title,
+    author,
+    isbn,
+    publisher,
+    description,
+    tags
+  };
+}
+
+// Airtableに書籍を登録する関数
+async function registerBookToAirtable(bookData) {
+  try {
+    console.log('📚 Airtableに書籍を登録中:', bookData.title);
+    
+    const url = `${config.airtable.baseUrl}/${config.airtable.baseId}/${config.airtable.tables.books}`;
+    
+    // まずAirtableのテーブル構造を確認
+    console.log('🔍 Airtableテーブル構造を確認中...');
+    try {
+      const structureResponse = await axios.get(url, {
+        headers: {
+          'Authorization': `Bearer ${config.airtable.apiKey}`
+        },
+        params: {
+          maxRecords: 1
+        }
+      });
+      
+      console.log('📋 テーブル構造:', JSON.stringify(structureResponse.data, null, 2));
+    } catch (structureError) {
+      console.error('⚠️ テーブル構造確認エラー:', structureError.response?.data || structureError.message);
+    }
+    
+    // フィールド名を確認して適切な形式で送信
+    const fields = {
+      'タイトル': bookData.title
+    };
+    
+    // 著者フィールドがある場合のみ追加
+    if (bookData.author) {
+      fields['著者'] = bookData.author;
+    }
+    
+    // 出版社がある場合は著者フィールドに含める
+    if (bookData.publisher && bookData.author) {
+      fields['著者'] = `${bookData.author} (${bookData.publisher})`;
+    } else if (bookData.publisher && !bookData.author) {
+      fields['著者'] = bookData.publisher;
+    }
+    
+    // タグフィールドを追加（Long text形式）
+    if (bookData.tags && bookData.tags.length > 0) {
+      fields['タグ'] = bookData.tags.join(', ');
+      console.log('🏷️ タグ設定:', bookData.tags.join(', '));
+    }
+    
+    // ステータスフィールドを追加
+    fields['status'] = '貸出可';
+    
+    console.log('📤 送信データ:', { records: [{ fields }] });
+    
+    const airtableData = {
+      records: [{
+        fields: fields
+      }]
+    };
+    
+    console.log('📚 Airtable登録データ:', JSON.stringify(airtableData, null, 2));
+    
+    const response = await axios.post(url, airtableData, {
+      headers: {
+        'Authorization': `Bearer ${config.airtable.apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (response.data.records && response.data.records.length > 0) {
+      console.log('✅ 書籍登録成功:', response.data.records[0].id);
+      return response.data.records[0];
+    } else {
+      throw new Error('書籍登録に失敗しました');
+    }
+  } catch (error) {
+    console.error('❌ Airtable書籍登録エラー:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message
+    });
+    
+    if (error.response?.data?.error) {
+      console.error('詳細エラー:', error.response.data.error);
+      console.error('エラー詳細:', JSON.stringify(error.response.data, null, 2));
+    }
+    
+    throw error;
+  }
+}
+
 // ヘルスチェック
 app.get('/api/health', (req, res) => {
   res.json({ 
@@ -1644,6 +1925,14 @@ app.get('/extend.js', (req, res) => {
 
 app.get('/app.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'app.js'));
+});
+
+app.get('/admin-login.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin-login.html'));
+});
+
+app.get('/admin-register.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin-register.html'));
 });
 
 // 404ハンドラー（全ての未定義ルート）

@@ -20,6 +20,31 @@
             max-width: 600px;
             width: 100%;
             padding: 20px;
+            position: relative;
+        }
+
+        .admin-tool-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+        }
+
+        .admin-tool-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+            color: white;
+            text-decoration: none;
+            transform: translateY(-2px);
         }
 
         .welcome-card {
@@ -155,6 +180,14 @@
                 min-width: auto;
                 width: 100%;
         }
+
+            .admin-tool-btn {
+                position: relative;
+                top: auto;
+                right: auto;
+                margin-bottom: 20px;
+                display: inline-block;
+            }
         }
         
         @media (max-width: 576px) {
@@ -178,6 +211,10 @@
 </head>
 <body>
     <div class="main-container">
+        <a href="/admin-login.html" class="admin-tool-btn">
+            <i class="fas fa-cog"></i> 管理者ツール
+        </a>
+        
         <div class="welcome-card">
             <div class="welcome-header">
                 <h1>📚 図書管理システム</h1>

@@ -32,6 +32,13 @@ Google Cloud Vision APIを使って画像から書名を抽出し、Airtableと�
 - **延長制限**: 最大1回までの延長制限
 - **延長履歴管理**: 延長回数の記録と管理
 
+### 🔧 管理者機能（新規追加）
+- **管理者認証**: パスワードによる管理者認証
+- **書籍登録**: Vision APIを使った自動書籍情報抽出
+- **画像解析**: 書籍表紙からのタイトル・著者・ISBN自動認識
+- **Airtable登録**: 解析結果の自動データベース登録
+- **ドラッグ&ドロップ**: 直感的な画像アップロード機能
+
 ### 📷 カメラ機能
 - **ブラウザカメラサポート**: すべてのページでカメラ機能を利用可能
 - **リアルタイムプレビュー**: 撮影前のリアルタイムプレビュー
@@ -112,6 +119,9 @@ AIRTABLE_BASE_ID=your_airtable_base_id_here
 AIRTABLE_TABLE_BOOKS=Books
 AIRTABLE_TABLE_STUDENTS=Students
 AIRTABLE_TABLE_LOANS=Loans
+
+# 管理者設定
+ADMIN_PASSWORD=admin123
 
 # Optional: Session Secret
 SESSION_SECRET=your_session_secret_here
@@ -215,6 +225,15 @@ AIRTABLE_TABLE_LOANS=Loans
 4. 延長したい書籍を選択
 5. 延長処理を実行（7日間延長）
 6. 延長完了
+
+### 🔧 管理者機能
+
+1. メインページ右上の「管理者ツール」をクリック
+2. 管理者パスワードを入力（デフォルト: admin123）
+3. 書籍登録ページで書籍の表紙を撮影またはアップロード
+4. Vision APIが自動で書籍情報を抽出
+5. 抽出された情報を確認・修正
+6. 「書籍を登録」ボタンでAirtableに登録
 
 ## 📱 対応デバイス
 

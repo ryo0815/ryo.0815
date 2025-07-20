@@ -13,3 +13,6 @@ LOANS_TABLE=Loans
 # テスト用データ
 TEST_STUDENT_ID=STU001
 TEST_IMAGE_BASE64=/Users/ryosatoh2/Documents/IMG_0010.jpeg
+
+# 管理者設定
+ADMIN_PASSWORD=test123
