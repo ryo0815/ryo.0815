@@ -121,7 +121,7 @@ AIRTABLE_TABLE_STUDENTS=Students
 AIRTABLE_TABLE_LOANS=Loans
 
 # 管理者設定
-ADMIN_PASSWORD=admin123
+ADMIN_PASSWORD=secure_admin_password_2024
 
 # Optional: Session Secret
 SESSION_SECRET=your_session_secret_here

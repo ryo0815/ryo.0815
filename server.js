@@ -1612,7 +1612,7 @@ app.get('/api/debug/book/:bookId/loans', async (req, res) => {
 app.post('/api/admin/login', (req, res) => {
   try {
     const { password } = req.body;
-    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'secure_admin_password_2024';
     
     if (password === adminPassword) {
       req.session.isAdmin = true;
